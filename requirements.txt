@@ -1,0 +1,4 @@
+customtkinter
+pyserial
+esptool
+requests

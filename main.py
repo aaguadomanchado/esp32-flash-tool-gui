@@ -11,8 +11,6 @@ class ESPFlashTool(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("ESP32 Relay X8 - Flash Tool")
-
         self.title("ESP32 Relay X8 - Suite de Flasheo")
         self.geometry("700x700")
         ctk.set_appearance_mode("dark")
@@ -23,17 +21,12 @@ class ESPFlashTool(ctk.CTk):
         self.serial_thread = None
         self.ser = None
 
-
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(4, weight=1) # El textbox se expande
+        self.grid_rowconfigure(5, weight=1) 
         
-
-
-
         # --- Header ---
         self.label_title = ctk.CTkLabel(self, text="ESP32 Advanced Flash Tool", font=ctk.CTkFont(size=22, weight="bold"))
         self.label_title.grid(row=0, column=0, padx=20, pady=15)
-
 
         # --- Port Config Frame ---
         self.frame_config = ctk.CTkFrame(self)
@@ -47,32 +40,20 @@ class ESPFlashTool(ctk.CTk):
         self.btn_refresh = ctk.CTkButton(self.frame_config, text="🔄", width=40, command=self.refresh_ports)
         self.btn_refresh.grid(row=0, column=2, padx=10, pady=10)
 
-
-
         ctk.CTkLabel(self.frame_config, text="Velocidad:").grid(row=1, column=0, padx=10, pady=10)
         self.combo_baud = ctk.CTkComboBox(self.frame_config, values=["921600", "460800", "115200"])
         self.combo_baud.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
 
-
         # --- File Selection ---
-        self.btn_select_file = ctk.CTkButton(self, text="📁 Seleccionar Firmware (.bin)", command=self.select_file)
+        self.btn_select_file = ctk.CTkButton(self, text="📁 Seleccionar Firmware FULL (.bin)", command=self.select_file)
         self.btn_select_file.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
-
-
-        self.label_file = ctk.CTkLabel(self, text="Ningún archivo seleccionado", font=ctk.CTkFont(size=10, slant="italic"))
+        self.label_file = ctk.CTkLabel(self, text="Selecciona firmware_full.bin para flasheo desde 0x0", font=ctk.CTkFont(size=10, slant="italic"))
         self.label_file.grid(row=3, column=0, padx=20, pady=0)
-
-
-
 
         # --- Console / Serial Monitor ---
         self.label_console = ctk.CTkLabel(self, text="Salida de Consola / Monitor Serie", font=ctk.CTkFont(weight="bold"))
         self.label_console.grid(row=4, column=0, padx=20, pady=(10,0), sticky="w")
         
-
-
-
-
         self.textbox = ctk.CTkTextbox(self, height=250, font=("Courier", 12))
         self.textbox.grid(row=5, column=0, padx=20, pady=10, sticky="nsew")
         
@@ -85,7 +66,7 @@ class ESPFlashTool(ctk.CTk):
                                        fg_color="#A93226", hover_color="#7B241C")
         self.btn_erase.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
 
-        self.btn_flash = ctk.CTkButton(self.frame_btns, text="🚀 FLASH", command=self.start_flash_thread, 
+        self.btn_flash = ctk.CTkButton(self.frame_btns, text="🚀 FLASH (0x0)", command=self.start_flash_thread, 
                                        fg_color="#1D8348", hover_color="#145A32", font=ctk.CTkFont(weight="bold"))
         self.btn_flash.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
@@ -99,14 +80,12 @@ class ESPFlashTool(ctk.CTk):
 
     def refresh_ports(self):
         self.combo_ports.configure(values=self.get_ports())
-
         if self.get_ports(): self.combo_ports.set(self.get_ports()[0])
 
     def select_file(self):
         file = filedialog.askopenfilename(filetypes=[("Binary files", "*.bin")])
         if file:
             self.bin_path = file
-
             self.label_file.configure(text=file)
 
     def log(self, message):
@@ -115,27 +94,10 @@ class ESPFlashTool(ctk.CTk):
 
     def start_flash_thread(self):
         if not self.bin_path:
-
             messagebox.showerror("Error", "Selecciona un archivo .bin")
             return
-
-
-
         self.stop_serial()
         threading.Thread(target=self.flash_firmware, daemon=True).start()
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     def start_erase_thread(self):
         if messagebox.askyesno("Confirmar", "¿Seguro que quieres borrar toda la memoria del ESP32?"):
@@ -147,14 +109,9 @@ class ESPFlashTool(ctk.CTk):
         self.btn_flash.configure(state="disabled")
         self.log("🧽 Borrando memoria flash...")
         try:
-
-
-
             esptool.main(['--port', self.combo_ports.get(), 'erase_flash'])
             self.log("✅ Memoria borrada con éxito.")
         except Exception as e:
-
-
             self.log(f"❌ Error al borrar: {str(e)}")
         finally:
             self.btn_erase.configure(state="normal")
@@ -163,13 +120,13 @@ class ESPFlashTool(ctk.CTk):
     def flash_firmware(self):
         self.btn_flash.configure(state="disabled")
         self.btn_erase.configure(state="disabled")
-        self.log(f"⚡ Flasheando {self.combo_ports.get()}...")
+        self.log(f"⚡ Flasheando {self.combo_ports.get()} en 0x0...")
         try:
             esptool.main(['--port', self.combo_ports.get(), '--baud', self.combo_baud.get(), 
-                          '--chip', 'esp32', 'write_flash', '--flash_mode', 'dio', '0x10000', self.bin_path])
+                          '--chip', 'esp32', 'write_flash', '--flash-mode', 'dio', '0x0', self.bin_path])
             self.log("✅ Flasheo completado con éxito.")
             time.sleep(1)
-            self.toggle_serial() # Auto-iniciar monitor tras flasheo
+            self.start_serial() 
         except Exception as e:
             self.log(f"❌ Error: {str(e)}")
         finally:
@@ -184,7 +141,7 @@ class ESPFlashTool(ctk.CTk):
 
     def start_serial(self):
         port = self.combo_ports.get()
-        baud = 115200 # Velocidad estándar para logs de ESP32
+        baud = 115200 
         try:
             self.ser = serial.Serial(port, baud, timeout=0.1)
             self.serial_reading = True
